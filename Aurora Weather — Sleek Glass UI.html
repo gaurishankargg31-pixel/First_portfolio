@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<!-- saved from url=(0040)https://akashahir798.github.io/temp-app/ -->
+<html lang="en" style="--accent: #bfa7ff;"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Aurora Weather — Sleek Glass UI</title>
+<link rel="preconnect" href="https://api.weatherapi.com/">
+<style>
+  :root{
+    --bg:#0a0b10;
+    --glass:rgba(255,255,255,.12);
+    --text:#eaf5ff;
+    --muted:#cfe7ffcc;
+    --accent:#7afff5;
+    --danger:#ff6b6b;
+    --radius:22px;
+    --blur:18px;
+    --shadow:0 20px 60px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0;
+    font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Inter, Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+    color:var(--text);
+    background:var(--bg);
+    overflow:hidden;
+  }
+
+  /* ===== Animated Aurora Background ===== */
+  .aurora{
+    position:fixed; inset:0; overflow:hidden; z-index:-1;
+    background: radial-gradient(1200px 800px at 10% 15%, #2af6ff22, transparent 60%),
+                radial-gradient(900px 700px at 85% 30%, #8a7bff22, transparent 55%),
+                radial-gradient(1000px 900px at 30% 80%, #00ffa922, transparent 60%),
+                radial-gradient(900px 900px at 70% 80%, #ff7ae622, transparent 60%),
+                linear-gradient(180deg, #05060c, #0a0b10);
+    filter: saturate(120%) contrast(105%);
+  }
+  .aurora .blob{
+    position:absolute; width:70vmax; height:70vmax; border-radius:50%;
+    background: radial-gradient(circle at 30% 30%, #9affff66, transparent 50%);
+    filter: blur(60px);
+    animation: float 28s ease-in-out infinite alternate;
+    mix-blend-mode: screen;
+  }
+  .aurora .blob:nth-child(1){left:-10vmax; top:-15vmax; animation-delay:0s}
+  .aurora .blob:nth-child(2){right:-15vmax; top:5vmax; animation-delay:4s; background:radial-gradient(circle at 70% 40%, #b79aff66, transparent 50%)}
+  .aurora .blob:nth-child(3){left:10vmax; bottom:-20vmax; animation-delay:8s; background:radial-gradient(circle at 40% 70%, #7affc366, transparent 55%)}
+  .aurora .blob:nth-child(4){right:-10vmax; bottom:-10vmax; animation-delay:12s; background:radial-gradient(circle at 60% 60%, #ff9ad466, transparent 55%)}
+  @keyframes float{
+    0%{transform:translate3d(0,0,0) rotate(0deg) scale(1)}
+    100%{transform:translate3d(5vmax,-6vmax,0) rotate(30deg) scale(1.08)}
+  }
+
+  /* ===== Layout ===== */
+  .wrap{
+    position:relative;
+    max-width:980px;
+    margin:0 auto;
+    padding:32px 20px 24px;
+    height:100%;
+    display:grid;
+    grid-template-rows:auto 1fr auto;
+    gap:18px;
+  }
+  header{
+    display:flex; gap:14px; align-items:center; justify-content:space-between;
+  }
+  .brand{
+    display:flex; align-items:center; gap:10px; letter-spacing:.3px;
+    font-weight:700; font-size:18px; color:#dffaff;
+    text-transform:uppercase;
+  }
+  .logo{
+    width:28px; height:28px; display:grid; place-items:center;
+    border-radius:9px;
+    background:linear-gradient(135deg,#07f3d3,#9a7bff);
+    box-shadow:0 6px 20px #7afff533;
+  }
+
+  /* ===== Search Bar ===== */
+  .search{
+    flex:1; display:flex; gap:10px; align-items:center; max-width:620px;
+    background:var(--glass);
+    border:1px solid #ffffff22; border-radius:var(--radius);
+    backdrop-filter: blur(var(--blur));
+    padding:10px 12px 10px 12px;
+    box-shadow:var(--shadow);
+  }
+  .search input{
+    flex:1; border:none; outline:none; background:transparent; color:var(--text);
+    font-size:16px;
+  }
+  .search button{
+    appearance:none; border:none; cursor:pointer;
+    padding:10px 14px; border-radius:12px; font-weight:600;
+    color:#061016;
+    background:linear-gradient(135deg,#7afff5,#84c2ff);
+    box-shadow:0 10px 24px #7afff52a;
+    transition: transform .12s ease, filter .12s ease;
+  }
+  .search button:hover{ transform: translateY(-1px); filter:brightness(1.05)}
+  .search button:active{ transform: translateY(0)}
+
+  /* ===== Main Card ===== */
+  .card{
+    display:grid; grid-template-columns: 1.2fr .8fr; gap:18px;
+    width:100%;
+  }
+  .panel{
+    background:var(--glass);
+    border:1px solid #ffffff22;
+    border-radius:var(--radius);
+    backdrop-filter: blur(var(--blur));
+    box-shadow:var(--shadow);
+    padding:18px;
+  }
+
+  /* Left: Now */
+  .now{
+    display:grid; grid-template-columns: auto 1fr auto; gap:18px; align-items:center;
+  }
+  .temp{
+    font-size:64px; line-height:1; font-weight:800; letter-spacing:-1px;
+  }
+  .loc{
+    color:var(--muted); font-size:14px; margin-top:6px;
+  }
+  .cond{
+    display:flex; align-items:center; gap:10px; margin-top:6px; font-weight:600;
+  }
+  .meta{
+    display:grid; grid-template-columns: repeat(4,1fr); gap:10px; margin-top:14px;
+  }
+  .chip{
+    background: #ffffff14; border:1px solid #ffffff22; border-radius:14px; padding:10px 12px;
+    display:flex; gap:8px; align-items:center; justify-content:center; font-size:13px; color:#e6f7ff;
+  }
+  .chip b{font-size:14px}
+
+  /* Right: AQI & Extra */
+  .side{
+    display:grid; grid-auto-rows:minmax(0,1fr); gap:18px;
+  }
+  .aqi{
+    display:grid; gap:8px;
+  }
+  .aqi-row{
+    display:flex; align-items:center; justify-content:space-between;
+    font-size:14px; color:var(--muted)
+  }
+  .gauge{
+    height:12px; background:#ffffff14; border:1px solid #ffffff22; border-radius:999px; overflow:hidden;
+  }
+  .bar{height:100%; width:0%; background:linear-gradient(90deg,#3de370,#ffd25a,#ff6b6b)}
+  .aqi-badge{
+    display:inline-flex; align-items:center; gap:8px; padding:8px 12px; border-radius:999px;
+    background:#ffffff14; border:1px solid #ffffff22; width:max-content; font-weight:700; letter-spacing:.2px
+  }
+
+  /* Footer */
+  footer{
+    display:flex; align-items:center; justify-content:space-between; gap:12px;
+    color:#a9c7dd; font-size:12px; opacity:.9;
+  }
+  .hint{opacity:.85}
+  .link{color:#cfe7ff; text-decoration:none; border-bottom:1px dotted #cfe7ff66}
+  .error{
+    padding:12px 14px; border-radius:12px; border:1px solid #ff7a7a44; background:#ff4d4d19; color:#ffdada; margin-top:10px;
+  }
+
+  /* Condition Icon */
+  .icon{
+    width:86px; height:86px; border-radius:22px; display:grid; place-items:center;
+    background:linear-gradient(135deg,#ffffff10,#ffffff06);
+    border:1px solid #ffffff18; box-shadow: inset 0 0 0 1px #ffffff0a;
+  }
+  .icon svg{width:58px; height:58px}
+
+  /* Responsive */
+  @media (max-width: 860px){
+    .card{ grid-template-columns:1fr }
+    .now{ grid-template-columns:auto 1fr }
+  }
+  @media (max-width: 480px){
+    .temp{font-size:52px}
+    .search{padding:8px}
+    .search button{padding:9px 12px}
+  }
+
+  /* Subtle entrance animation */
+  .fade-in{ animation: fade .5s ease-out both}
+  @keyframes fade{ from{opacity:0; transform: translateY(6px)} to{opacity:1; transform:none} }
+</style>
+</head>
+<body>
+  <!-- Animated background -->
+  <div class="aurora" aria-hidden="true">
+    <div class="blob"></div>
+    <div class="blob"></div>
+    <div class="blob"></div>
+    <div class="blob"></div>
+  </div>
+
+  <div class="wrap">
+    <header>
+      <div class="brand">
+        <div class="logo">☼</div>
+        Aurora Weather
+      </div>
+
+      <form class="search" id="searchForm" autocomplete="off">
+        <input id="q" name="q" placeholder="Search city or place (e.g., London, New York, Delhi)">
+        <button type="submit">Get Weather</button>
+      </form>
+    </header>
+
+    <main class="card">
+      <!-- Now Panel -->
+      <section class="panel now" id="nowPanel" aria-live="polite">
+        <!-- Icon -->
+        <div class="icon fade-in" id="icon">
+  <svg viewBox="0 0 64 64" fill="none" aria-label="Clear night">
+    <defs><filter id="g6"><fedropshadow dx="0" dy="0" stdDeviation="3.5" flood-color="#bfa7ff" flood-opacity=".6"></fedropshadow></filter></defs>
+    <g filter="url(#g6)">
+      <path d="M41 12a18 18 0 1 0 11 30 16 16 0 1 1-11-30z" fill="#d7e5ff" stroke="#eef5ff" stroke-width="2"></path>
+    </g>
+  </svg></div>
+
+        <!-- Text -->
+        <div>
+          <div style="display:flex; align-items:baseline; gap:12px">
+            <div class="temp" id="temp">19°</div>
+            <div class="cond" id="cond"><span>Clear</span></div>
+          </div>
+          <div class="loc" id="loc">Kathmandu, Nepal</div>
+
+          <div class="meta">
+            <div class="chip"><span>🌡️ Feels</span> <b id="feels">19°</b></div>
+            <div class="chip"><span>💧 Humidity</span> <b id="hum">30%</b></div>
+            <div class="chip"><span>🌬 Wind</span> <b id="wind">4 kph</b></div>
+            <div class="chip"><span>☀ UV</span> <b id="uv">0</b></div>
+          </div>
+
+          <div id="error" class="error" style="display:none"></div>
+        </div>
+
+        <!-- Right side of "now" (extra quick facts) -->
+        <div style="justify-self:end; text-align:right;">
+          <div style="font-size:13px; color:var(--muted);">Updated</div>
+          <div id="time" style="font-size:14px; font-weight:600;">2025-12-15 14:00</div>
+        </div>
+      </section>
+
+      <!-- Side Panel -->
+      <aside class="panel side">
+        <div class="aqi">
+          <div style="display:flex; align-items:center; gap:10px; justify-content:space-between;">
+            <div class="aqi-badge" id="aqiBadge" style="background: rgba(255, 158, 90, 0.2); border-color: rgba(255, 158, 90, 0.333);">🍃 AQI: Unhealthy</div>
+            <div style="font-size:12px; color:var(--muted)" id="aqiScale">Good 1 — 6 Hazardous</div>
+          </div>
+          <div class="aqi-row">
+            <span>Air Quality</span><span id="aqiLabel">Unhealthy</span>
+          </div>
+          <div class="gauge"><div class="bar" id="aqiBar" style="width: 66.6667%; background: linear-gradient(90deg, rgb(61, 227, 112), rgb(255, 210, 90), rgb(255, 107, 107));"></div></div>
+        </div>
+
+        <div style="display:grid; gap:8px;">
+          <div style="font-size:14px; color:var(--muted)">Units</div>
+          <div style="display:flex; gap:8px;">
+            <button id="cBtn" aria-pressed="true" style="padding:8px 10px;border:none;border-radius:10px;cursor:pointer;background:#ffffff22;color:#eaf5ff;font-weight:700">°C</button>
+            <button id="fBtn" aria-pressed="false" style="padding:8px 10px;border:none;border-radius:10px;cursor:pointer;background:#ffffff14;color:#d7edff">°F</button>
+          </div>
+        </div>
+      </aside>
+    </main>
+
+    <footer>
+      <div class="hint">Tip: Press <b>Enter</b> after typing a city.</div>
+      <div>Data by <a class="link" href="https://www.weatherapi.com/" target="_blank" rel="noopener">WeatherAPI</a></div>
+    </footer>
+  </div>
+
+<script>
+/* =========================
+   Utility: DOM Shortcuts
+========================= */
+const $ = (id) => document.getElementById(id);
+
+/* =========================
+   Config & State
+========================= */
+const API_KEY = "f7d2f6a89e57427b889151219252709"; // your key
+// Use HTTPS to avoid mixed-content issues on secure sites
+const API_URL = (q) => `https://api.weatherapi.com/v1/current.json?key=${API_KEY}&q=${encodeURIComponent(q)}&aqi=yes`;
+
+let useCelsius = true;
+
+/* =========================
+   Condition → Icon SVG
+========================= */
+function iconFor(conditionText, isDay){
+  const t = (conditionText || "").toLowerCase();
+
+  // Simple classification
+  const rain = /rain|drizzle|shower/gi.test(t);
+  const thunder = /thunder|storm/gi.test(t);
+  const snow = /snow|sleet|blizzard|ice/gi.test(t);
+  const fog = /fog|mist|haze|smoke/gi.test(t);
+  const cloudy = /overcast|cloud/gi.test(t);
+  const clear = /clear|sunny/gi.test(t);
+
+  // Palette glow
+  const glow = isDay ? "#9af3ff" : "#bfa7ff";
+
+  if (thunder) {
+    return `
+    <svg viewBox="0 0 64 64" fill="none" aria-label="Thunderstorm">
+      <defs><filter id="g" x="-50%" y="-50%" width="200%" height="200%">
+        <feDropShadow dx="0" dy="0" stdDeviation="4" flood-color="${glow}" flood-opacity=".6"/>
+      </filter></defs>
+      <g filter="url(#g)">
+        <path d="M20 26a12 12 0 1 1 23 3h3a9 9 0 1 1 0 18H21a10 10 0 1 1-1-21h0" stroke="#d9e8ff" stroke-width="2.5" stroke-linecap="round"/>
+        <path d="M30 36h8l-6 8h7l-11 12 4-11h-6l4-9z" fill="#ffd25a" stroke="#ffe7a1" stroke-width="1.5" />
+      </g>
+    </svg>`;
+  }
+  if (rain){
+    return `
+    <svg viewBox="0 0 64 64" fill="none" aria-label="Rain">
+      <defs><filter id="g2"><feDropShadow dx="0" dy="0" stdDeviation="3" flood-color="${glow}" flood-opacity=".6"/></filter></defs>
+      <g filter="url(#g2)">
+        <path d="M20 26a12 12 0 1 1 23 3h3a9 9 0 1 1 0 18H21a10 10 0 1 1-1-21" stroke="#d9e8ff" stroke-width="2.5" stroke-linecap="round"/>
+        <g stroke="#7ad0ff" stroke-width="2.6" stroke-linecap="round">
+          <path d="M24 44v8"/><path d="M34 44v8"/><path d="M44 44v8"/>
+        </g>
+      </g>
+    </svg>`;
+  }
+  if (snow){
+    return `
+    <svg viewBox="0 0 64 64" fill="none" aria-label="Snow">
+      <defs><filter id="g3"><feDropShadow dx="0" dy="0" stdDeviation="3" flood-color="${glow}" flood-opacity=".6"/></filter></defs>
+      <g filter="url(#g3)">
+        <path d="M20 26a12 12 0 1 1 23 3h3a9 9 0 1 1 0 18H21a10 10 0 1 1-1-21" stroke="#d9e8ff" stroke-width="2.5" stroke-linecap="round"/>
+        <g stroke="#eaf7ff" stroke-width="2" stroke-linecap="round">
+          <path d="M24 45l-3 3m0-3l3 3M34 45l-3 3m0-3l3 3M44 45l-3 3m0-3l3 3"/>
+        </g>
+      </g>
+    </svg>`;
+  }
+  if (fog){
+    return `
+    <svg viewBox="0 0 64 64" fill="none" aria-label="Fog">
+      <defs><filter id="g4"><feDropShadow dx="0" dy="0" stdDeviation="3" flood-color="${glow}" flood-opacity=".6"/></filter></defs>
+      <g filter="url(#g4)">
+        <path d="M20 26a12 12 0 1 1 23 3h3a9 9 0 1 1 0 18H21a10 10 0 1 1-1-21" stroke="#d9e8ff" stroke-width="2.5" stroke-linecap="round"/>
+        <g stroke="#cfe7ff" stroke-linecap="round" stroke-width="2.4">
+          <path d="M18 44h28"/><path d="M14 49h36"/><path d="M22 54h24"/>
+        </g>
+      </g>
+    </svg>`;
+  }
+  if (cloudy){
+    return `
+    <svg viewBox="0 0 64 64" fill="none" aria-label="Cloudy">
+      <defs><filter id="g5"><feDropShadow dx="0" dy="0" stdDeviation="3" flood-color="${glow}" flood-opacity=".6"/></filter></defs>
+      <g filter="url(#g5)">
+        <path d="M20 30a12 12 0 1 1 23 3h3a9 9 0 1 1 0 16H21a10 10 0 1 1-1-19" stroke="#d9e8ff" stroke-width="2.5" stroke-linecap="round"/>
+      </g>
+    </svg>`;
+  }
+  // default clear (day/night)
+  return `
+  <svg viewBox="0 0 64 64" fill="none" aria-label="${isDay? 'Sunny' : 'Clear night'}">
+    <defs><filter id="g6"><feDropShadow dx="0" dy="0" stdDeviation="3.5" flood-color="${glow}" flood-opacity=".6"/></filter></defs>
+    <g filter="url(#g6)">
+      ${isDay
+        ? `<circle cx="32" cy="32" r="12" fill="#ffd25a" stroke="#ffeab0" stroke-width="2"/>
+           <g stroke="#ffeab0" stroke-linecap="round" stroke-width="2">
+             <path d="M32 8v8"/><path d="M32 48v8"/><path d="M8 32h8"/><path d="M48 32h8"/>
+             <path d="M14 14l6 6"/><path d="M44 44l6 6"/><path d="M50 14l-6 6"/><path d="M14 50l6-6"/>
+           </g>`
+        : `<path d="M41 12a18 18 0 1 0 11 30 16 16 0 1 1-11-30z" fill="#d7e5ff" stroke="#eef5ff" stroke-width="2"/>`
+      }
+    </g>
+  </svg>`;
+}
+
+/* =========================
+   Air Quality Helpers
+========================= */
+function epaIndexToLabel(idx){
+  // US EPA index 1..6
+  const map = {
+    1: "Good", 2: "Moderate", 3: "Unhealthy (SG)",
+    4: "Unhealthy", 5: "Very Unhealthy", 6: "Hazardous"
+  };
+  return map[idx] || "—";
+}
+function epaIndexToPercent(idx){
+  // 1..6 mapped to 10%..100%
+  if(!idx) return 0;
+  return Math.min(100, Math.max(10, (idx/6)*100));
+}
+function epaColor(idx){
+  switch(idx){
+    case 1: return "#3de370";
+    case 2: return "#aeea4d";
+    case 3: return "#ffd25a";
+    case 4: return "#ff9e5a";
+    case 5: return "#ff6b6b";
+    case 6: return "#e04386";
+    default: return "#cfe7ff";
+  }
+}
+
+/* =========================
+   Unit Toggle
+========================= */
+function toC(vF){ return (vF - 32) * 5/9 }
+function toF(vC){ return (vC * 9/5) + 32 }
+
+/* =========================
+   Render
+========================= */
+function render(data){
+  const c = data.current, l = data.location;
+  const isDay = !!c.is_day;
+
+  // Temp & condition
+  const tempC = Math.round(c.temp_c);
+  const tempF = Math.round(c.temp_f);
+  const feelsC = Math.round(c.feelslike_c);
+  const feelsF = Math.round(c.feelslike_f);
+
+  $("temp").textContent = useCelsius ? `${tempC}°` : `${tempF}°`;
+  $("feels").textContent = useCelsius ? `${feelsC}°` : `${feelsF}°`;
+  $("cond").innerHTML = `<span>${c.condition.text}</span>`;
+  $("loc").textContent = `${l.name}, ${l.country}`;
+  $("time").textContent = c.last_updated;
+
+  $("hum").textContent = `${c.humidity}%`;
+  $("wind").textContent = `${Math.round(c.wind_kph)} kph`;
+
+  $("uv").textContent = `${c.uv}`;
+
+  // Icon
+  $("icon").innerHTML = iconFor(c.condition.text, isDay);
+  $("icon").classList.add("fade-in");
+
+  // AQI
+  const epa = c.air_quality?.['us-epa-index'] || 0;
+  const label = epaIndexToLabel(epa);
+  $("aqiBadge").textContent = `🍃 AQI: ${label}`;
+  $("aqiLabel").textContent = label;
+
+  const bar = $("aqiBar");
+  bar.style.width = epaIndexToPercent(epa) + "%";
+  bar.style.background = `linear-gradient(90deg, #3de370, #ffd25a, #ff6b6b)`;
+
+  // Badge tint
+  const tint = epaColor(epa) + "33";
+  $("aqiBadge").style.background = tint;
+  $("aqiBadge").style.borderColor = epaColor(epa) + "55";
+
+  // Accent lift depending on condition (subtle)
+  document.documentElement.style.setProperty("--accent", isDay ? "#7afff5" : "#bfa7ff");
+
+  // Store last city
+  localStorage.setItem("last_city", l.name);
+}
+
+/* =========================
+   Fetch
+========================= */
+async function fetchWeather(q){
+  $("error").style.display = "none";
+  try{
+    const r = await fetch(API_URL(q), {mode:"cors"});
+    const data = await r.json();
+    if(data?.error){
+      $("error").textContent = `⚠ ${data.error.message || "Location not found"}`;
+      $("error").style.display = "block";
+      return;
+    }
+    render(data);
+  }catch(err){
+    $("error").textContent = "⚠ Network error. Please check your connection or try another location.";
+    $("error").style.display = "block";
+  }
+}
+
+/* =========================
+   Events
+========================= */
+$("searchForm").addEventListener("submit", (e)=>{
+  e.preventDefault();
+  const val = $("q").value.trim();
+  if(!val){ $("q").focus(); return; }
+  fetchWeather(val);
+});
+
+// Unit toggles
+$("cBtn").addEventListener("click", ()=>{
+  useCelsius = true;
+  $("cBtn").style.background = "#ffffff22";
+  $("cBtn").style.color = "#eaf5ff";
+  $("cBtn").setAttribute("aria-pressed","true");
+  $("fBtn").style.background = "#ffffff14";
+  $("fBtn").style.color = "#d7edff";
+  $("fBtn").setAttribute("aria-pressed","false");
+
+  // Re-render with last data if available (from DOM)
+  const loc = $("loc").textContent;
+  if(loc && loc !== "Enter a location to begin"){
+    // Re-fetch to keep feels like consistent
+    const city = localStorage.getItem("last_city") || loc.split(",")[0];
+    fetchWeather(city);
+  }
+});
+$("fBtn").addEventListener("click", ()=>{
+  useCelsius = false;
+  $("fBtn").style.background = "#ffffff22";
+  $("fBtn").style.color = "#eaf5ff";
+  $("fBtn").setAttribute("aria-pressed","true");
+  $("cBtn").style.background = "#ffffff14";
+  $("cBtn").style.color = "#d7edff";
+  $("cBtn").setAttribute("aria-pressed","false");
+
+  const loc = $("loc").textContent;
+  if(loc && loc !== "Enter a location to begin"){
+    const city = localStorage.getItem("last_city") || loc.split(",")[0];
+    fetchWeather(city);
+  }
+});
+
+/* =========================
+   Init
+========================= */
+const last = localStorage.getItem("last_city");
+if(last){
+  $("q").value = last;
+  fetchWeather(last);
+} else {
+  // Provide a pretty first glance
+  $("q").value = "London";
+  fetchWeather("London");
+}
+</script>
+
+
+</body></html>
